@@ -42,7 +42,7 @@ import app.mochipiano.ui.theme.MC
 import app.mochipiano.ui.theme.T
 
 @Composable
-fun ConnectScreen(onDone: () -> Unit) {
+fun ConnectScreen(onDone: () -> Unit, onCalibrate: () -> Unit) {
     val ctx = LocalContext.current
     val state by MidiHub.state.collectAsStateWithLifecycle()
     val found by MidiHub.found.collectAsStateWithLifecycle()
@@ -71,6 +71,15 @@ fun ConnectScreen(onDone: () -> Unit) {
                     }
                     SoftButton("Disconnect", { MidiHub.disconnect() }, height = 40.dp)
                 }
+            }
+            MCard {
+                Text("Check the timing", style = T.bodyStrong, color = MC.Ink)
+                Text(
+                    if (Store.data.settings.calibrated) "Measured: ${Store.data.settings.latencyMs} ms in songs, ${Store.data.settings.latencyAudioMs} ms with clicks."
+                    else "A 30-second tap-along so Mochi can allow for the Bluetooth delay when judging your timing.",
+                    style = T.small, color = MC.InkSoft,
+                )
+                SoftButton(if (Store.data.settings.calibrated) "Check again" else "Check timing", onCalibrate, bg = MC.Porcelain)
             }
         } else {
             MCard {

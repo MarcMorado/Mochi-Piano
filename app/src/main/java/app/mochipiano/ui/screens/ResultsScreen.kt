@@ -38,6 +38,15 @@ import app.mochipiano.ui.components.TopBar
 import app.mochipiano.ui.theme.MC
 import app.mochipiano.ui.theme.T
 import kotlin.math.abs
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import app.mochipiano.record.LastTake
+import app.mochipiano.record.Recordings
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import kotlin.math.roundToInt
 
 @Composable
@@ -128,6 +137,17 @@ fun ResultsScreen(
         if (weakSection != null && (weakest?.value ?: 1.0) < 0.85 && cfg.loop == null) {
             PrimaryButton("Loop section ${weakSection.name}", { onLoop(cfg.copy(loop = weakSection, autoSpeed = true)) }, Modifier.fillMaxWidth(), icon = Ic.Loop,
                 color = if (fromLesson) MC.Ink else MC.Right)
+        }
+        var saved by remember { mutableStateOf(false) }
+        val cap = LastTake.capture
+        if (cap != null && cap.snapshot().any { (it.status and 0xF0) == 0x90 }) {
+            SoftButton(if (saved) "Saved to Recordings" else "Save this take", {
+                if (!saved) {
+                    val stamp = SimpleDateFormat("d MMM, HH:mm", Locale.ENGLISH).format(Date())
+                    Recordings.save("${song.title} · ${(r.accuracy * 100).roundToInt()}% · $stamp", cap.snapshot(), cap.startNanos)
+                    saved = true
+                }
+            }, Modifier.fillMaxWidth(), icon = if (saved) Ic.Check else Ic.Heart)
         }
         val nextSpeed = if (pct >= 90) (r.speed + 0.05f).coerceAtMost(1f) else r.speed
         SoftButton(if (nextSpeed > r.speed) "Play again at ${(nextSpeed * 100).roundToInt()}%" else "Play again", {

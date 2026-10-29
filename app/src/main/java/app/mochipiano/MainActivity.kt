@@ -8,6 +8,7 @@ import androidx.activity.enableEdgeToEdge
 import app.mochipiano.audio.Sound
 import app.mochipiano.data.Store
 import app.mochipiano.midi.MidiHub
+import app.mochipiano.record.Recordings
 import app.mochipiano.ui.MochiApp
 import app.mochipiano.ui.theme.MochiTheme
 
@@ -20,6 +21,7 @@ class MainActivity : ComponentActivity() {
         Store.load(this)
         MidiHub.init(this)
         Sound.init(this)
+        Recordings.load(this)
         val uri = intent?.data
         setContent {
             MochiTheme { MochiApp(uri) }

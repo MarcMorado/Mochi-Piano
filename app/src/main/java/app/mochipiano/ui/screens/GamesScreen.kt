@@ -50,7 +50,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 
 @Composable
-fun GamesScreen(onStart: (Lesson, String) -> Unit) {
+fun GamesScreen(onStart: (Lesson, String) -> Unit, onRecord: () -> Unit) {
     val d = Store.data
     val t = Practice.treblePool(d)
     val b = Practice.bassPool(d)
@@ -80,6 +80,9 @@ fun GamesScreen(onStart: (Lesson, String) -> Unit) {
             locked = if (Practice.rhythmLevel(d) == 0) "Opens after lesson ${Course.byId("beat")?.number}, Feel the beat" else null,
             art = { RhythmStrip(listOf(1.0, 1.0, 2.0), Modifier.fillMaxWidth(0.55f)) },
             onClick = { onStart(Practice.rhythm(d), "rhythm") })
+        GameCard("Record yourself", "Play anything and keep it. Listen back on the piano, or send it with the sound.", MC.RightSoft, locked = null,
+            art = { Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) { Box(Modifier.size(18.dp).clip(CircleShape).background(MC.Right)); Text("REC", style = T.monoBig, color = MC.Ink) } },
+            onClick = onRecord)
         Metronome()
     }
 }

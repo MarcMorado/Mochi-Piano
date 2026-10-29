@@ -63,6 +63,7 @@ fun SongSetupScreen(songId: String, fromLesson: Boolean, onBack: () -> Unit, onP
     var speed by remember { mutableStateOf(if (first) 0.7f else st.speed) }
     var autoSpeed by remember { mutableStateOf(true) }
     var wait by remember { mutableStateOf(first || fromLesson) }
+    var sheet by remember { mutableStateOf(Store.data.settings.sheetView) }
     var dynamic by remember { mutableStateOf(!fromLesson && song.difficulty >= 3) }
     var clicks by remember { mutableStateOf(false) }
     var loop by remember { mutableStateOf<Section?>(null) }
@@ -120,13 +121,20 @@ fun SongSetupScreen(songId: String, fromLesson: Boolean, onBack: () -> Unit, onP
             }
         }
 
-        Label("How to play")
+        Label("What you see")
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            ModeCard("Note highway", "Notes fall in time", !wait, Modifier.weight(1f)) { wait = false }
-            ModeCard("Wait for me", "Stops until you play", wait, Modifier.weight(1f)) { wait = true }
+            ModeCard("Falling notes", "Bars drop onto the keys", !sheet, Modifier.weight(1f)) { sheet = false }
+            ModeCard("Sheet music", "A real score with a cursor", sheet, Modifier.weight(1f)) { sheet = true }
         }
 
         MCard(radius = 22.dp) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Wait for me", style = T.bodyStrong, color = MC.Ink)
+                    Text("The song stops at each note until you play it", style = T.small, color = MC.InkSoft)
+                }
+                Toggle(wait, { wait = it }, "Wait for me")
+            }
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text("Dynamic difficulty", style = T.bodyStrong, color = MC.Ink)
@@ -184,8 +192,8 @@ fun SongSetupScreen(songId: String, fromLesson: Boolean, onBack: () -> Unit, onP
             PrimaryButton("Play", {
                 preview?.cancel()
                 val h = hands.joinToString("") { it.name }
-                Store.update { a -> a.copy(songs = a.songs + (song.id to Store.songStat(song.id).copy(hands = h, speed = speed))) }
-                onPlay(GameConfig(song, hands, speed, wait, dynamic, if (dynamic) st.level else 10, loop, autoSpeed, Store.data.settings.otherHandForMe, clicks))
+                Store.update { a -> a.copy(songs = a.songs + (song.id to Store.songStat(song.id).copy(hands = h, speed = speed)), settings = a.settings.copy(sheetView = sheet)) }
+                onPlay(GameConfig(song, hands, speed, wait, dynamic, if (dynamic) st.level else 10, loop, autoSpeed, Store.data.settings.otherHandForMe, clicks, sheet, Store.data.settings.latencyMs))
             }, Modifier.weight(1f), icon = Ic.Play)
         }
         if (fromLesson) Text("Tip: Wait for me is on, so the song waits for each note.", style = T.small, color = MC.InkSoft, modifier = Modifier.padding(bottom = 8.dp))

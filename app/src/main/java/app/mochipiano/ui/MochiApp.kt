@@ -22,7 +22,9 @@ import app.mochipiano.game.GameConfig
 import app.mochipiano.midi.Link
 import app.mochipiano.midi.MidiHub
 import app.mochipiano.ui.components.BottomNav
+import app.mochipiano.ui.screens.CalibrateScreen
 import app.mochipiano.ui.screens.ConnectScreen
+import app.mochipiano.ui.screens.RecordScreen
 import app.mochipiano.ui.screens.GameScreen
 import app.mochipiano.ui.screens.GamesScreen
 import app.mochipiano.ui.screens.HomeScreen
@@ -72,8 +74,8 @@ fun MochiApp(openUri: Uri?) {
                         onConnect = { nav.push(Scr.Connect) },
                     )
                     "songs" -> SongsScreen(onSong = { nav.push(Scr.Setup(it)) }, onImport = { importUri = null; nav.push(Scr.Import) })
-                    "games" -> GamesScreen(onStart = { l, key -> nav.push(Scr.LessonS(LessonSession(l, key))) })
-                    else -> MeScreen(onConnect = { nav.push(Scr.Connect) })
+                    "games" -> GamesScreen(onStart = { l, key -> nav.push(Scr.LessonS(LessonSession(l, key))) }, onRecord = { nav.push(Scr.Recordings) })
+                    else -> MeScreen(onConnect = { nav.push(Scr.Connect) }, onRecord = { nav.push(Scr.Recordings) }, onCalibrate = { nav.push(Scr.Calibrate) })
                 }
             }
             BottomNav(top.tab) { nav.tab(it) }
@@ -119,7 +121,11 @@ fun MochiApp(openUri: Uri?) {
             onContinueLesson = { nav.popTo { it is Scr.LessonS } },
         )
 
-        Scr.Connect -> ConnectScreen(onDone = { nav.pop() })
+        Scr.Connect -> ConnectScreen(onDone = { nav.pop() }, onCalibrate = { nav.push(Scr.Calibrate) })
+
+        Scr.Recordings -> RecordScreen(onBack = { nav.pop() })
+
+        Scr.Calibrate -> CalibrateScreen(onDone = { nav.pop() })
 
         Scr.Import -> ImportScreen(importUri, onBack = { nav.pop() }, onAdded = { id -> nav.replace(Scr.Setup(id)) })
     }

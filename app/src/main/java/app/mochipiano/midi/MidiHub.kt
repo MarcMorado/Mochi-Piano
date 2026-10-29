@@ -27,6 +27,9 @@ import kotlinx.coroutines.flow.update
 import java.util.UUID
 
 data class NoteEvent(val pitch: Int, val velocity: Int, val on: Boolean, val nanos: Long, val fromPiano: Boolean)
+
+/** A raw channel message (note on/off or control change) with its arrival time, for recording. */
+data class MidiMsg(val status: Int, val d1: Int, val d2: Int, val nanos: Long)
 data class FoundDevice(val name: String, val address: String)
 
 enum class Link { Off, Scanning, Connecting, Connected }
@@ -45,6 +48,9 @@ object MidiHub {
     private val main = Handler(Looper.getMainLooper())
 
     val events = MutableSharedFlow<NoteEvent>(extraBufferCapacity = 512)
+    val raw = MutableSharedFlow<MidiMsg>(extraBufferCapacity = 2048)
+    /** Sustain pedal presses (true) and releases (false) with their time. */
+    val pedalEvents = MutableSharedFlow<Pair<Boolean, Long>>(extraBufferCapacity = 64)
     val held = MutableStateFlow<Set<Int>>(emptySet())
     val sustain = MutableStateFlow(false)
     val state = MutableStateFlow(ConnState())
@@ -223,7 +229,13 @@ object MidiHub {
                 when (type) {
                     0x90 -> emit(n, b, b > 0, ts, true)
                     0x80 -> emit(n, 0, false, ts, true)
-                    0xB0 -> if (n == 64) sustain.value = b >= 64
+                    0xB0 -> {
+                        raw.tryEmit(MidiMsg(0xB0, n, b, ts))
+                        if (n == 64) {
+                            val down = b >= 64
+                            if (down != sustain.value) { sustain.value = down; pedalEvents.tryEmit(down to ts) }
+                        }
+                    }
                 }
             }
         }
@@ -232,6 +244,7 @@ object MidiHub {
     private fun emit(p: Int, v: Int, on: Boolean, ts: Long, fromPiano: Boolean) {
         val e = NoteEvent(p, v, on, ts, fromPiano)
         events.tryEmit(e)
+        raw.tryEmit(MidiMsg(if (on) 0x90 else 0x80, p, v, ts))
         if (on) lastNote.value = e
         held.update { if (on) it + p else it - p }
     }
@@ -246,8 +259,24 @@ object MidiHub {
         try { port.send(byteArrayOf(status.toByte(), p.toByte(), velocity.coerceIn(0, 127).toByte()), 0, 3) } catch (_: Exception) {}
     }
 
+    fun sendRaw(status: Int, d1: Int, d2: Int) {
+        val port = inPort ?: return
+        try { port.send(byteArrayOf(status.toByte(), d1.toByte(), d2.toByte()), 0, 3) } catch (_: Exception) {}
+    }
+
+    /** On-screen pedal for trying pedal lessons without a piano. */
+    fun injectPedal(down: Boolean) {
+        val ts = System.nanoTime()
+        sustain.value = down
+        pedalEvents.tryEmit(down to ts)
+        raw.tryEmit(MidiMsg(0xB0, 64, if (down) 127 else 0, ts))
+    }
+
     fun allNotesOff() {
         val port = inPort ?: return
-        try { port.send(byteArrayOf(0xB0.toByte(), 123, 0), 0, 3) } catch (_: Exception) {}
+        try {
+            port.send(byteArrayOf(0xB0.toByte(), 64, 0), 0, 3)
+            port.send(byteArrayOf(0xB0.toByte(), 123, 0), 0, 3)
+        } catch (_: Exception) {}
     }
 }

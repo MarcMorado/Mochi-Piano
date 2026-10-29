@@ -27,6 +27,10 @@ data class GameConfig(
     val autoSpeed: Boolean,
     val otherHand: Boolean,
     val clicks: Boolean = false,
+    /** Show the notes as a scrolling score instead of falling bars. */
+    val sheet: Boolean = false,
+    /** Calibrated input delay, taken off every key time before judging. */
+    val latencyMs: Int = 0,
 )
 
 data class GameResult(
@@ -235,8 +239,9 @@ class GameEngine(private val cfg: GameConfig) {
     // ---------- judging ----------
     fun onNote(e: NoteEvent) {
         if (!e.on || paused || finished) return
-        val ago = if (lastNanos > 0) (lastNanos - e.nanos) / 1e9 else 0.0
-        val at = beat - ago.coerceIn(-0.05, 0.3) / secPerBeat
+        val played = e.nanos - cfg.latencyMs * 1_000_000L
+        val ago = if (lastNanos > 0) (lastNanos - played) / 1e9 else 0.0
+        val at = beat - ago.coerceIn(-0.05, 0.5) / secPerBeat
         val window = if (cfg.wait) 0.35 else 0.25
         val cand = notes.filter { it.mine && it.judge == null && it.n.pitch == e.pitch && abs(it.n.start - at) * secPerBeat <= window }
             .minByOrNull { abs(it.n.start - at) }

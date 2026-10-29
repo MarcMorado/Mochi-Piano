@@ -47,7 +47,24 @@ sealed interface Step {
 
     /** Listen to a short phrase, then play it back by ear. */
     data class Echo(override val title: String, val pool: List<Int>, val rounds: Int, val startLength: Int = 3) : Step
+
+    /** Measure her softest and loudest touch, so dynamics are judged against her own range. */
+    data class TouchRange(override val title: String, val text: String) : Step
+
+    /** Play each target softly, medium or loudly. */
+    data class Dynamics(override val title: String, val text: String, val targets: List<Dyn>, val pitch: Int) : Step
+
+    /** Play the notes getting louder ([up]) or softer, one after another. */
+    data class Swell(override val title: String, val text: String, val seq: List<Int>, val up: Boolean) : Step
+
+    /** Pedal down, chord, hands off while it rings, pedal up. */
+    data class Pedal(override val title: String, val text: String, val chord: List<Int>) : Step
+
+    /** Legato pedal: after each new chord, lift the pedal and press it again. */
+    data class PedalChange(override val title: String, val text: String, val chords: List<List<Int>>) : Step
 }
+
+enum class Dyn(val mark: String, val word: String) { P("p", "softly"), MF("mf", "medium"), F("f", "loudly") }
 
 data class Lesson(val id: String, val unit: Int, val title: String, val steps: List<Step>) {
     var number: Int = 0
@@ -76,6 +93,7 @@ object Course {
         CourseUnit("First songs", Tint.Twin),
         CourseUnit("Reading music", Tint.Right),
         CourseUnit("Two hands", Tint.Soft),
+        CourseUnit("Touch and pedal", Tint.Left),
     )
 
     val lessons: List<Lesson> = listOf(
@@ -180,6 +198,26 @@ object Course {
         Lesson("ode", 5, "Ode to Joy", listOf(
             Step.Info("Beethoven, 1824", "You know every note in this melody already. Two dotted notes give it a little lilt.", mood = Mood.Cheer),
             Step.Song("Ode to Joy", "Start with the right hand, then add the left in song setup.", "ode"),
+        )),
+        Lesson("softloud", 6, "Soft and loud", listOf(
+            Step.Info("Piano means soft", "The instrument's full name is pianoforte: soft-loud. How hard you press decides how loud it sounds. In music, p means soft and f means loud.", mood = Mood.Cheer),
+            Step.TouchRange("Your touch", "First I'll learn your own soft and loud, so I can judge fairly."),
+            Step.Dynamics("p or f", "Play Middle C softly or loudly, as each card says.", listOf(Dyn.P, Dyn.F, Dyn.P, Dyn.F, Dyn.F, Dyn.P), 60),
+            Step.Dynamics("Add the middle", "mf means medium: not too soft, not too loud.", listOf(Dyn.P, Dyn.MF, Dyn.F, Dyn.MF, Dyn.P, Dyn.MF), 60),
+        )),
+        Lesson("swell", 6, "Getting louder", listOf(
+            Step.Info("Crescendo", "A crescendo grows louder note by note; a diminuendo fades away. It's how music breathes.", Vis.Keys(60..72, RH.keys.associateWith { Tint.Right }, RH)),
+            Step.Swell("Crescendo", "Play C D E F G, each note a little louder than the last.", listOf(60, 62, 64, 65, 67), true),
+            Step.Swell("Diminuendo", "Now G F E D C, each one softer.", listOf(67, 65, 64, 62, 60), false),
+        )),
+        Lesson("pedal", 6, "The sustain pedal", listOf(
+            Step.Info("The right pedal", "The right pedal keeps notes ringing after you let go. Keep your heel on the floor and press with the ball of your foot.", mood = Mood.Listening),
+            Step.Pedal("Let it ring", "Pedal down, play the C chord, lift your hands and listen. Then lift the pedal.", listOf(60, 64, 67)),
+            Step.Pedal("Big and low", "Same again with a bigger chord across both hands.", listOf(48, 55, 60, 64)),
+        )),
+        Lesson("pedalchange", 6, "Changing the pedal", listOf(
+            Step.Info("Play, then change", "To join chords without blurring them, play the new chord first, then quickly lift the pedal and press it again.", mood = Mood.Calm),
+            Step.PedalChange("C, F, G, C", "Hold the pedal through each chord and change it just after every new one.", listOf(listOf(60, 64, 67), listOf(60, 65, 69), listOf(59, 62, 67), listOf(60, 64, 67))),
         )),
     ).also { list -> list.forEachIndexed { i, l -> l.number = i + 1 } }
 

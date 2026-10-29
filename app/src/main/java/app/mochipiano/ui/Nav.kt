@@ -27,6 +27,8 @@ sealed interface Scr {
     data class Result(val r: GameResult, val cfg: GameConfig, val from: LessonSession?) : Scr
     data object Connect : Scr
     data object Import : Scr
+    data object Recordings : Scr
+    data object Calibrate : Scr
 }
 
 class Nav {

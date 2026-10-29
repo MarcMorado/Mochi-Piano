@@ -52,6 +52,10 @@ import app.mochipiano.game.GameConfig
 import app.mochipiano.game.GameEngine
 import app.mochipiano.game.GameResult
 import app.mochipiano.game.Judge
+import app.mochipiano.game.drawSheet
+import app.mochipiano.record.Capture
+import app.mochipiano.record.LastTake
+import app.mochipiano.data.Store
 import app.mochipiano.midi.Link
 import app.mochipiano.midi.MidiHub
 import app.mochipiano.music.Hand
@@ -99,6 +103,12 @@ fun GameScreen(cfg: GameConfig, solfege: Boolean, onQuit: () -> Unit, onDone: (G
         }
     }
     LaunchedEffect(engine) { MidiHub.events.collect { engine.onNote(it) } }
+    LaunchedEffect(engine) {
+        val cap = Capture()
+        LastTake.capture = cap
+        LastTake.title = cfg.song.title
+        MidiHub.raw.collect { cap.add(it) }
+    }
 
     BackHandler { engine.paused = !engine.paused }
 
@@ -111,7 +121,7 @@ fun GameScreen(cfg: GameConfig, solfege: Boolean, onQuit: () -> Unit, onDone: (G
         Canvas(
             Modifier.fillMaxSize().pointerInput(range) {
                 detectTapGestures(onPress = { o ->
-                    val kbTop = size.height * 0.70f
+                    val kbTop = size.height * (if (cfg.sheet) 0.80f else 0.70f)
                     if (o.y < kbTop) return@detectTapGestures
                     val pad = 16.dp.toPx()
                     val g = KeyGeo(range, size.width - pad * 2, size.height - kbTop)
@@ -126,8 +136,8 @@ fun GameScreen(cfg: GameConfig, solfege: Boolean, onQuit: () -> Unit, onDone: (G
             engine.frame // redraw every frame
             val now = System.nanoTime()
             val pad = 16.dp.toPx()
-            val hudH = 60.dp.toPx()
-            val kbTop = size.height * 0.70f
+            val hudH = (if (cfg.sheet) 92 else 60).dp.toPx()
+            val kbTop = size.height * (if (cfg.sheet) 0.80f else 0.70f)
             val hitY = kbTop - 3.dp.toPx()
             val g = KeyGeo(range, size.width - pad * 2, size.height - kbTop)
             val spb = engine.secPerBeat
@@ -135,54 +145,60 @@ fun GameScreen(cfg: GameConfig, solfege: Boolean, onQuit: () -> Unit, onDone: (G
             val ppb = ((hitY - hudH) / lookBeats).toFloat()
             val beat = engine.beat
 
-            // Lanes.
-            g.whites.forEachIndexed { i, p ->
-                val x = pad + i * g.whiteW
-                drawLine(Color.White.copy(alpha = if (Pitch.pc(p) == 0) 0.13f else 0.045f), Offset(x, hudH), Offset(x, hitY), 1.dp.toPx())
-            }
             val targets = engine.targetsNow()
-            targets.forEach { t ->
-                val c = if (t.n.hand == Hand.R) MC.StageRight else MC.StageLeft
-                drawRect(c.copy(alpha = 0.07f), Offset(pad + g.left(t.n.pitch), hudH), Size(g.w(t.n.pitch), hitY - hudH))
-            }
-
-            // Notes.
-            val inset = 3.dp.toPx()
-            val r = CornerRadius(8.dp.toPx())
-            engine.notes.forEach { pn ->
-                val n = pn.n
-                if (n.start + n.dur < beat - 0.2 || n.start > beat + lookBeats + 0.5) return@forEach
-                if (n.pitch !in range) return@forEach
-                val x = pad + g.left(n.pitch) + inset
-                val nw = g.w(n.pitch) - inset * 2
-                val yBottom = hitY - ((n.start - beat) * ppb).toFloat()
-                val yTop = yBottom - (n.dur * ppb).toFloat() + inset
-                val top = maxOf(yTop, hudH)
-                val bottom = minOf(yBottom, hitY)
-                if (bottom - top < 2f) return@forEach
-                val hand = if (n.hand == Hand.R) MC.StageRight else MC.StageLeft
-                val color = when {
-                    !pn.mine -> MC.StageMuted.copy(alpha = 0.28f)
-                    pn.judge == Judge.Miss -> Color(0xFF4A4060)
-                    pn.judge != null -> lerpWhite(hand, 0.5f)
-                    !pn.required -> hand.copy(alpha = 0.18f)
-                    else -> hand
+            var cursorX = size.width / 2
+            if (cfg.sheet) {
+                cursorX = drawSheet(engine, pad, hudH + 4.dp.toPx(), size.width - pad * 2, kbTop - hudH - 12.dp.toPx(), tm, labelCache, solfege, Store.data.settings.letters)
+            } else {
+                // Lanes.
+                g.whites.forEachIndexed { i, p ->
+                    val x = pad + i * g.whiteW
+                    drawLine(Color.White.copy(alpha = if (Pitch.pc(p) == 0) 0.13f else 0.045f), Offset(x, hudH), Offset(x, hitY), 1.dp.toPx())
                 }
-                drawRoundRect(color, Offset(x, top), Size(nw, bottom - top), r)
-                if (pn.mine && !pn.required && pn.judge == null) drawRoundRect(hand.copy(alpha = 0.6f), Offset(x, top), Size(nw, bottom - top), r, style = Stroke(1.5.dp.toPx()))
-                if (pn.mine && pn.required && bottom - top > 26.dp.toPx() && nw > 22.dp.toPx()) {
-                    val key = "${n.pitch}:${n.finger}:${n.hand}:$solfege"
-                    val lab = labelCache.getOrPut(key) {
-                        tm.measure(Pitch.displayPitch(n.pitch, solfege) + (if (n.finger > 0) " ${n.finger}" else ""),
-                            TextStyle(fontFamily = Bricolage, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp, color = Color(0xFF1A0A14)))
+                targets.forEach { t ->
+                    val c = if (t.n.hand == Hand.R) MC.StageRight else MC.StageLeft
+                    drawRect(c.copy(alpha = 0.07f), Offset(pad + g.left(t.n.pitch), hudH), Size(g.w(t.n.pitch), hitY - hudH))
+                }
+
+                // Notes.
+                val inset = 3.dp.toPx()
+                val r = CornerRadius(8.dp.toPx())
+                engine.notes.forEach { pn ->
+                    val n = pn.n
+                    if (n.start + n.dur < beat - 0.2 || n.start > beat + lookBeats + 0.5) return@forEach
+                    if (n.pitch !in range) return@forEach
+                    val x = pad + g.left(n.pitch) + inset
+                    val nw = g.w(n.pitch) - inset * 2
+                    val yBottom = hitY - ((n.start - beat) * ppb).toFloat()
+                    val yTop = yBottom - (n.dur * ppb).toFloat() + inset
+                    val top = maxOf(yTop, hudH)
+                    val bottom = minOf(yBottom, hitY)
+                    if (bottom - top < 2f) return@forEach
+                    val hand = if (n.hand == Hand.R) MC.StageRight else MC.StageLeft
+                    val color = when {
+                        !pn.mine -> MC.StageMuted.copy(alpha = 0.28f)
+                        pn.judge == Judge.Miss -> Color(0xFF4A4060)
+                        pn.judge != null -> lerpWhite(hand, 0.5f)
+                        !pn.required -> hand.copy(alpha = 0.18f)
+                        else -> hand
                     }
-                    if (lab.size.width < nw) drawText(lab, topLeft = Offset(x + (nw - lab.size.width) / 2, top + 5.dp.toPx()))
+                    drawRoundRect(color, Offset(x, top), Size(nw, bottom - top), r)
+                    if (pn.mine && !pn.required && pn.judge == null) drawRoundRect(hand.copy(alpha = 0.6f), Offset(x, top), Size(nw, bottom - top), r, style = Stroke(1.5.dp.toPx()))
+                    if (pn.mine && pn.required && bottom - top > 26.dp.toPx() && nw > 22.dp.toPx()) {
+                        val key = "${n.pitch}:${n.finger}:${n.hand}:$solfege"
+                        val lab = labelCache.getOrPut(key) {
+                            tm.measure(Pitch.displayPitch(n.pitch, solfege) + (if (n.finger > 0) " ${n.finger}" else ""),
+                                TextStyle(fontFamily = Bricolage, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp, color = Color(0xFF1A0A14)))
+                        }
+                        if (lab.size.width < nw) drawText(lab, topLeft = Offset(x + (nw - lab.size.width) / 2, top + 5.dp.toPx()))
+                    }
                 }
-            }
 
-            // Hit line.
-            drawLine(MC.StageRight.copy(alpha = 0.18f), Offset(pad, hitY), Offset(size.width - pad, hitY), 8.dp.toPx())
-            drawLine(Color(0xFFFFD1E0), Offset(pad, hitY), Offset(size.width - pad, hitY), 2.dp.toPx())
+                // Hit line.
+                drawLine(MC.StageRight.copy(alpha = 0.18f), Offset(pad, hitY), Offset(size.width - pad, hitY), 8.dp.toPx())
+                drawLine(Color(0xFFFFD1E0), Offset(pad, hitY), Offset(size.width - pad, hitY), 2.dp.toPx())
+
+            }
 
             // Keyboard.
             val targetPitches = targets.associate { it.n.pitch to it.n.hand }
@@ -211,7 +227,8 @@ fun GameScreen(cfg: GameConfig, solfege: Boolean, onQuit: () -> Unit, onDone: (G
             }
 
             // Feedback text.
-            val centerY = hudH + (hitY - hudH) * 0.38f
+            val centerY = if (cfg.sheet) hudH + 26.dp.toPx() else hudH + (hitY - hudH) * 0.38f
+            val centerX = if (cfg.sheet) cursorX else size.width / 2
             if (beat < (cfg.loop?.start ?: 0.0)) {
                 val left = ceil((cfg.loop?.start ?: 0.0) - beat).toInt().coerceAtLeast(1)
                 val l = tm.measure(left.toString(), TextStyle(fontFamily = Bricolage, fontWeight = FontWeight.ExtraBold, fontSize = 72.sp, color = MC.StageRight))
@@ -227,11 +244,11 @@ fun GameScreen(cfg: GameConfig, solfege: Boolean, onQuit: () -> Unit, onDone: (G
                         Judge.Miss -> "Missed" to MC.StageRight
                     }
                     val a = (1 - age / 0.7).toFloat().coerceIn(0f, 1f)
-                    val l = tm.measure(txt, TextStyle(fontFamily = Bricolage, fontWeight = FontWeight.ExtraBold, fontSize = 34.sp, color = col.copy(alpha = a * col.alpha)))
-                    drawText(l, topLeft = Offset((size.width - l.size.width) / 2, centerY - l.size.height / 2))
+                    val l = tm.measure(txt, TextStyle(fontFamily = Bricolage, fontWeight = FontWeight.ExtraBold, fontSize = if (cfg.sheet) 22.sp else 34.sp, color = col.copy(alpha = a * col.alpha)))
+                    drawText(l, topLeft = Offset(centerX - l.size.width / 2, centerY - l.size.height / 2))
                     if (engine.combo >= 4 && j != Judge.Miss) {
                         val c2 = tm.measure("${engine.combo} IN A ROW", TextStyle(fontFamily = GeistMono, fontWeight = FontWeight.Bold, fontSize = 12.sp, color = MC.StageMuted.copy(alpha = a)))
-                        drawText(c2, topLeft = Offset((size.width - c2.size.width) / 2, centerY + l.size.height / 2))
+                        drawText(c2, topLeft = Offset(centerX - c2.size.width / 2, centerY + l.size.height / 2))
                     }
                 }
                 if (engine.waiting) {

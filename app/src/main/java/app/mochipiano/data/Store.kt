@@ -35,6 +35,15 @@ data class Settings(
     val solfege: Boolean = false,
     val otherHandForMe: Boolean = true,
     val letters: Boolean = true,
+    /** Measured delay between a click and her key arriving, removed before judging timing. */
+    val latencyMs: Int = 0,
+    /** Same, measured against clicks the phone plays (adds the speaker's own delay). */
+    val latencyAudioMs: Int = 0,
+    val calibrated: Boolean = false,
+    /** Her own soft and loud velocities, measured in the dynamics lesson. */
+    val dynSoft: Int = 40,
+    val dynLoud: Int = 100,
+    val sheetView: Boolean = false,
 )
 
 data class AppData(
@@ -140,6 +149,8 @@ object Store {
         put("days", JSONObject().apply { a.days.forEach { (k, v) -> put(k, v) } })
         put("rhythmBpm", a.rhythmBpm); put("btAddr", a.lastBtAddress ?: ""); put("btName", a.lastBtName ?: "")
         put("solfege", a.settings.solfege); put("otherHand", a.settings.otherHandForMe); put("letters", a.settings.letters)
+        put("latency", a.settings.latencyMs); put("latencyAudio", a.settings.latencyAudioMs); put("calibrated", a.settings.calibrated); put("dynSoft", a.settings.dynSoft); put("dynLoud", a.settings.dynLoud)
+        put("sheetView", a.settings.sheetView)
         put("planDay", a.planDay ?: ""); put("planDone", a.planDone.joinToString(","))
     }
 
@@ -159,7 +170,11 @@ object Store {
             lastDay = o.optString("lastDay").ifEmpty { null }, lessons = lessons,
             notes = boxesOf(o.optJSONObject("notes")), keys = boxesOf(o.optJSONObject("keys")), songs = songs, days = days,
             rhythmBpm = o.optInt("rhythmBpm", 70), lastBtAddress = o.optString("btAddr").ifEmpty { null }, lastBtName = o.optString("btName").ifEmpty { null },
-            settings = Settings(o.optBoolean("solfege", false), o.optBoolean("otherHand", true), o.optBoolean("letters", true)),
+            settings = Settings(
+                o.optBoolean("solfege", false), o.optBoolean("otherHand", true), o.optBoolean("letters", true),
+                o.optInt("latency", 0), o.optInt("latencyAudio", 0), o.optBoolean("calibrated", false), o.optInt("dynSoft", 40), o.optInt("dynLoud", 100),
+                o.optBoolean("sheetView", false),
+            ),
             planDay = o.optString("planDay").ifEmpty { null },
             planDone = o.optString("planDone").split(',').filter { it.isNotBlank() }.toSet(),
         )

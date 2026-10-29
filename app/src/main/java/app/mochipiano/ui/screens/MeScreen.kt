@@ -36,6 +36,7 @@ import app.mochipiano.midi.Link
 import app.mochipiano.midi.MidiHub
 import app.mochipiano.music.Pitch
 import app.mochipiano.ui.components.ConnPill
+import app.mochipiano.ui.components.Chip
 import app.mochipiano.ui.components.Hairline
 import app.mochipiano.ui.components.Label
 import app.mochipiano.ui.components.MCard
@@ -50,7 +51,7 @@ import java.util.Locale
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun MeScreen(onConnect: () -> Unit) {
+fun MeScreen(onConnect: () -> Unit, onRecord: () -> Unit, onCalibrate: () -> Unit) {
     val d = Store.data
     val conn by MidiHub.state.collectAsStateWithLifecycle()
     var name by remember { mutableStateOf(d.name) }
@@ -117,6 +118,22 @@ fun MeScreen(onConnect: () -> Unit) {
             SettingRow("Show letters on keys", "Turn off once you can find notes without them", d.settings.letters) { v -> Store.update { it.copy(settings = it.settings.copy(letters = v)) } }
             Hairline()
             SettingRow("Play the other hand for me", "When you practise one hand, the piano plays the other", d.settings.otherHandForMe) { v -> Store.update { it.copy(settings = it.settings.copy(otherHandForMe = v)) } }
+            Hairline()
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Timing", style = T.body, color = MC.Ink)
+                    Text(if (d.settings.calibrated) "${d.settings.latencyMs} ms in songs, ${d.settings.latencyAudioMs} ms with clicks" else "Not checked yet", style = T.small, color = MC.InkSoft)
+                }
+                Chip(if (d.settings.calibrated) "Check again" else "Check", bg = MC.Porcelain, onClick = onCalibrate, modifier = Modifier.height(36.dp))
+            }
+            Hairline()
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Recordings", style = T.body, color = MC.Ink)
+                    Text("${app.mochipiano.record.Recordings.takes.size} saved", style = T.small, color = MC.InkSoft)
+                }
+                Chip("Open", bg = MC.Porcelain, onClick = onRecord, modifier = Modifier.height(36.dp))
+            }
             Hairline()
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {

@@ -79,13 +79,13 @@ private fun tintColor(t: Tint) = when (t) {
 
 /** Run [onOn] for every key she presses while this composable is on screen. */
 @Composable
-private fun OnKeys(key: Any, onOn: (NoteEvent) -> Unit) {
+internal fun OnKeys(key: Any, onOn: (NoteEvent) -> Unit) {
     val cb by rememberUpdatedState(onOn)
     LaunchedEffect(key) { MidiHub.events.collect { if (it.on) cb(it) } }
 }
 
 /** On-screen keys act like the piano: inject the note, and sound it when no piano is there to do it. */
-private fun tapKey(p: Int, down: Boolean) {
+internal fun tapKey(p: Int, down: Boolean) {
     if (down && !MidiHub.canSendToPiano) Sound.note(p, 500)
     MidiHub.inject(p, down)
 }
@@ -125,6 +125,11 @@ fun LessonScreen(s: LessonSession, onExit: () -> Unit, onPlaySong: (String) -> U
             is Step.Rhythm -> RhythmStep(s, step, next)
             is Step.Song -> SongStep(s, step, onPlaySong, next)
             is Step.Echo -> EchoStep(s, step, solfege, next)
+            is Step.TouchRange -> TouchRangeStep(step, next)
+            is Step.Dynamics -> DynamicsStep(s, step, next)
+            is Step.Swell -> SwellStep(s, step, solfege, next)
+            is Step.Pedal -> PedalStep(s, step, conn.link == Link.Connected, next)
+            is Step.PedalChange -> PedalChangeStep(s, step, conn.link == Link.Connected, next)
         }
         if (step !is Step.Info && step !is Step.Choice && step !is Step.Song) ListeningLine(conn.link == Link.Connected)
     }
@@ -488,7 +493,7 @@ private suspend fun runRhythm(
 ) {
     synchronized(taps) { taps.clear() }
     val beatNs = 60e9 / bpm
-    val lat = 0L
+    val lat = Store.data.settings.latencyAudioMs * 1_000_000L
     val t0 = System.nanoTime() + 350_000_000L
     val total = pattern.sumOf { abs(it) }
     val onsets = ArrayList<Pair<Int, Long>>()
@@ -619,7 +624,7 @@ private fun makePhrase(pool: List<Int>, n: Int): List<Int> {
 // ------------------------------------------------------------------ shared
 
 @Composable
-private fun DoneCard(right: Int, asked: Int, next: () -> Unit) {
+internal fun DoneCard(right: Int, asked: Int, next: () -> Unit) {
     val a = if (asked == 0) 1.0 else right.toDouble() / asked
     Column(Modifier.fillMaxWidth().padding(top = 20.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Mochi(if (a >= 0.8) Mood.Cheer else Mood.Calm, Modifier.size(110.dp))
