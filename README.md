@@ -29,7 +29,7 @@ Without a piano connected, on-screen keys stand in for the real ones, so everyth
 Every push to `main` builds an APK with GitHub Actions and publishes it as a release.
 On the phone, open the latest release and download **mochi-piano.apk**:
 
-https://github.com/MarcMorado/mochi-piano/releases/latest/download/mochi-piano.apk
+https://github.com/MarcMorado/Mochi-Piano/releases/latest/download/mochi-piano.apk
 
 Allow "Install unknown apps" for the browser when asked. All builds are signed with the same
 key (in `app/keystore/`), so new versions install over old ones and keep progress.
