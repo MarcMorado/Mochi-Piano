@@ -29,6 +29,9 @@ import app.mochipiano.course.Course
 import app.mochipiano.course.Practice
 import app.mochipiano.data.Store
 import app.mochipiano.music.Hand
+import app.mochipiano.music.BuiltInSongs
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import app.mochipiano.ui.components.Chip
 import app.mochipiano.ui.components.Cover
 import app.mochipiano.ui.components.Ic
@@ -44,10 +47,11 @@ fun SongsScreen(onSong: (String) -> Unit, onImport: () -> Unit) {
     var q by rememberSaveable { mutableStateOf("") }
     var filter by rememberSaveable { mutableStateOf("All") }
     val all = Store.allSongs()
+    val catOf = { s: app.mochipiano.music.Song -> if (s.imported) "Imported" else s.category.ifBlank { "Course" } }
     val shown = all.filter { s ->
-        (filter == "All" || (filter == "Course" && !s.imported) || (filter == "Imported" && s.imported)) &&
+        (filter == "All" || catOf(s) == filter) &&
             (q.isBlank() || s.title.contains(q, true) || s.composer.contains(q, true))
-    }
+    }.sortedWith(compareBy({ if (it.imported) 0 else if (catOf(it) == "Course") 1 else 2 }, { if (catOf(it) == "Course") 0 else it.difficulty }))
 
     Page(bottomPad = 32.dp) {
         Row(Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
@@ -64,8 +68,8 @@ fun SongsScreen(onSong: (String) -> Unit, onImport: () -> Unit) {
                 BasicTextField(q, { q = it }, singleLine = true, textStyle = T.body.copy(color = MC.Ink), cursorBrush = SolidColor(MC.Right), modifier = Modifier.fillMaxWidth())
             }
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf("All", "Course", "Imported").forEach { f ->
+        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            (listOf("All") + BuiltInSongs.categories + "Imported").forEach { f ->
                 Chip(f, bg = if (f == filter) MC.Ink else MC.Surface, fg = if (f == filter) MC.Surface else MC.Ink, onClick = { filter = f }, modifier = Modifier.height(36.dp))
             }
         }

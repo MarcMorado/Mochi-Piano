@@ -38,7 +38,10 @@ import app.mochipiano.music.Hand
 import app.mochipiano.music.ImportException
 import app.mochipiano.music.MidiFileImport
 import app.mochipiano.music.MusicXmlImport
+import app.mochipiano.music.Simplify
 import app.mochipiano.music.Song
+import app.mochipiano.music.simplified
+import app.mochipiano.ui.components.Chip
 import app.mochipiano.ui.components.Hairline
 import app.mochipiano.ui.components.Ic
 import app.mochipiano.ui.components.Label
@@ -69,25 +72,29 @@ fun parseScore(bytes: ByteArray, name: String): Song {
 @Composable
 fun ImportScreen(initial: Uri?, onBack: () -> Unit, onAdded: (String) -> Unit) {
     val ctx = LocalContext.current
-    var song by remember { mutableStateOf<Song?>(null) }
+    var original by remember { mutableStateOf<Song?>(null) }
+    var level by remember { mutableStateOf(Simplify.Original) }
     var file by remember { mutableStateOf<Pair<String, Int>?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     var title by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
     var pending by remember { mutableStateOf(initial) }
 
+    // A file shared to Mochi while this screen is already open.
+    LaunchedEffect(initial) { if (initial != null) pending = initial }
+
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> if (uri != null) pending = uri }
 
     LaunchedEffect(pending) {
         val uri = pending ?: return@LaunchedEffect
-        busy = true; error = null; song = null
+        busy = true; error = null; original = null; level = Simplify.Original
         try {
             val (s, n, size) = withContext(Dispatchers.IO) {
                 val n = displayName(ctx, uri)
                 val bytes = ctx.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: throw ImportException("Could not open the file.")
                 Triple(parseScore(bytes, n), n, bytes.size)
             }
-            song = s; title = s.title; file = n to size
+            original = s; title = s.title; file = n to size
         } catch (e: ImportException) {
             error = e.message
         } catch (e: Exception) {
@@ -103,13 +110,14 @@ fun ImportScreen(initial: Uri?, onBack: () -> Unit, onAdded: (String) -> Unit) {
             SourceCard("MusicXML", ".mxl or .musicxml from MuseScore", Modifier.weight(1f)) { picker.launch(arrayOf("*/*")) }
             SourceCard("MIDI", ".mid files", Modifier.weight(1f)) { picker.launch(arrayOf("audio/midi", "audio/x-midi", "application/x-midi", "*/*")) }
         }
-        Text("Photos of printed pages are coming later. For now, look up the piece on MuseScore or Mutopia and export it as MusicXML.", style = T.small, color = MC.InkSoft)
+        Text("Got a PDF? Open it in MuseScore 4 (File → Import PDF), then export as MusicXML and share it to Mochi.", style = T.small, color = MC.InkSoft)
 
         if (busy) Text("Reading the score…", style = T.bodyStrong, color = MC.InkSoft)
         error?.let { MCard(color = MC.RightSoft) { Text(it, style = T.bodyStrong, color = MC.RightText) } }
 
-        val s = song
-        if (s != null) {
+        val src = original
+        if (src != null) {
+            val s = remember(src, level) { src.simplified(level) }
             file?.let { (n, size) ->
                 Row(
                     Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(MC.MintSoft).padding(horizontal = 12.dp, vertical = 10.dp),
@@ -128,6 +136,14 @@ fun ImportScreen(initial: Uri?, onBack: () -> Unit, onAdded: (String) -> Unit) {
                 StaffView(preview.map { StaffNote(it.pitch, it.dur.coerceIn(0.5, 4.0), color = if (it.hand == Hand.R) MC.Right else MC.Left) }, clef, aspect = 3.2f)
                 Text("First notes · ${s.bars} bars", style = T.small, color = MC.InkSoft)
             }
+            Label("Make it easier?")
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Simplify.entries.forEach { l ->
+                    Chip(l.label, bg = if (l == level) MC.Ink else MC.Surface, fg = if (l == level) MC.Surface else MC.Ink,
+                        onClick = { level = l }, modifier = Modifier.height(36.dp))
+                }
+            }
+            Text(level.blurb + " · ${s.notes.size} of ${src.notes.size} notes", style = T.small, color = MC.InkSoft)
             Label("Title")
             BasicTextField(
                 title, { title = it }, singleLine = true, textStyle = T.bodyStrong.copy(color = MC.Ink), cursorBrush = SolidColor(MC.Right),

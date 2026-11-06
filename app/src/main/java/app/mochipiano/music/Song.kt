@@ -26,6 +26,7 @@ data class Song(
     val imported: Boolean = false,
     val lessonId: String? = null,
     val coverSeed: Int = 0,
+    val category: String = "",
 ) {
     val length: Double get() = notes.maxOfOrNull { it.start + it.dur } ?: 0.0
     val hands: Set<Hand> get() = notes.map { it.hand }.toSet()
@@ -52,6 +53,7 @@ data class Song(
     fun toJson(): JSONObject = JSONObject().apply {
         put("id", id); put("title", title); put("composer", composer); put("bpm", bpm); put("barBeats", barBeats)
         put("timeSig", timeSig); put("keyName", keyName); put("coverSeed", coverSeed)
+        if (category.isNotBlank()) put("category", category)
         put("notes", JSONArray().apply {
             notes.forEach { n -> put(JSONArray().apply { put(n.start); put(n.dur); put(n.pitch); put(if (n.hand == Hand.R) 0 else 1); put(n.finger) }) }
         })
@@ -71,7 +73,7 @@ data class Song(
                 id = o.getString("id"), title = o.getString("title"), composer = o.optString("composer", ""),
                 bpm = o.optDouble("bpm", 90.0), barBeats = o.optDouble("barBeats", 4.0), timeSig = o.optString("timeSig", "4/4"),
                 keyName = o.optString("keyName", ""), notes = notes, sections = sections, imported = true,
-                coverSeed = o.optInt("coverSeed", 0),
+                coverSeed = o.optInt("coverSeed", 0), category = o.optString("category", ""),
             )
         }
 
@@ -104,4 +106,42 @@ data class Song(
 
         fun nearly(a: Double, b: Double) = abs(a - b) < 1e-6
     }
+}
+
+/** How much of an imported score to keep. */
+enum class Simplify(val label: String, val blurb: String) {
+    Original("As written", "Every note in the score"),
+    Easier("Easier", "Top melody note, one bass note per beat"),
+    Melody("Melody only", "Just the tune, right hand"),
+}
+
+/**
+ * Makes a score playable for a beginner. Easier keeps the highest right-hand note of each chord and the
+ * lowest left-hand note on each beat; Melody keeps only the top line, played by the right hand.
+ */
+fun Song.simplified(level: Simplify): Song {
+    if (level == Simplify.Original) return this
+    fun topLine(src: List<SNote>, hand: Hand): List<SNote> {
+        val tops = src.groupBy { Math.round(it.start * 48) }.toSortedMap().values.map { chord -> chord.maxBy { it.pitch } }
+        // A note ends no later than the next one starts, so held notes don't overlap the tune.
+        return tops.mapIndexed { i, n ->
+            val next = tops.getOrNull(i + 1)?.start ?: (n.start + n.dur)
+            n.copy(dur = minOf(n.dur, next - n.start).coerceAtLeast(0.125), hand = hand, finger = 0)
+        }
+    }
+    val right = notes.filter { it.hand == Hand.R }.ifEmpty { notes }
+    val melody = topLine(right, Hand.R)
+    val out = if (level == Simplify.Melody || hands.size < 2) melody else {
+        val left = notes.filter { it.hand == Hand.L }
+        val bass = left.groupBy { Math.floor(it.start + 1e-6).toInt() }.toSortedMap().values.map { beat ->
+            val first = beat.minOf { it.start }
+            beat.filter { Math.abs(it.start - first) < 1e-6 }.minBy { it.pitch }
+        }
+        val bassFixed = bass.mapIndexed { i, n ->
+            val next = bass.getOrNull(i + 1)?.start ?: (n.start + n.dur)
+            n.copy(dur = minOf(n.dur, next - n.start).coerceAtLeast(0.25), finger = 0)
+        }
+        melody + bassFixed
+    }
+    return copy(notes = out.sortedWith(compareBy({ it.start }, { it.pitch })))
 }

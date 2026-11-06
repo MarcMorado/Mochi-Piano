@@ -28,7 +28,8 @@
             android:name=".MainActivity"
             android:exported="true"
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|smallestScreenSize|uiMode"
-            android:windowSoftInputMode="adjustResize">
+            android:windowSoftInputMode="adjustResize"
+            android:launchMode="singleTask">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -41,6 +42,23 @@
                 <data android:mimeType="application/vnd.recordare.musicxml+xml" />
                 <data android:mimeType="audio/midi" />
                 <data android:mimeType="audio/x-midi" />
+                <data android:mimeType="audio/mid" />
+                <data android:mimeType="application/x-midi" />
+            </intent-filter>
+            <!-- Share a score to Mochi from MuseScore, Files, Drive or a chat app. -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="application/vnd.recordare.musicxml" />
+                <data android:mimeType="application/vnd.recordare.musicxml+xml" />
+                <data android:mimeType="application/xml" />
+                <data android:mimeType="text/xml" />
+                <data android:mimeType="application/zip" />
+                <data android:mimeType="application/octet-stream" />
+                <data android:mimeType="audio/midi" />
+                <data android:mimeType="audio/x-midi" />
+                <data android:mimeType="audio/mid" />
+                <data android:mimeType="application/x-midi" />
             </intent-filter>
         </activity>
         <provider

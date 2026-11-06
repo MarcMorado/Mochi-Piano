@@ -42,7 +42,7 @@ fun MochiApp(openUri: Uri?) {
     val ctx = LocalContext.current
     var importUri by remember { mutableStateOf(openUri) }
 
-    LaunchedEffect(openUri) { if (openUri != null) { importUri = openUri; nav.push(Scr.Import) } }
+    LaunchedEffect(openUri) { if (openUri != null) { importUri = openUri; if (nav.top != Scr.Import) nav.push(Scr.Import) } }
     // Reconnect to the last Bluetooth piano when the app opens.
     LaunchedEffect(Unit) {
         val d = Store.data

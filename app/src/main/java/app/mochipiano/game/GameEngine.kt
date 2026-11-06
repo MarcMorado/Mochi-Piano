@@ -77,7 +77,8 @@ class GameEngine(private val cfg: GameConfig) {
 
     private val regionStart = cfg.loop?.start ?: 0.0
     private val regionEnd = cfg.loop?.end ?: song.length
-    var beat = regionStart - song.barBeats
+    private val countIn = song.barBeats * ceil(3.0 / song.barBeats - 1e-9)
+    var beat = regionStart - countIn
         private set
     private var lastNanos = 0L
     var paused by mutableStateOf(false)
@@ -232,7 +233,7 @@ class GameEngine(private val cfg: GameConfig) {
         if (cfg.dynamic && acc >= 0.9 && level < 10) { level++; levelChangedNanos = now }
         notes.forEach { if (it.n.start >= regionStart - 1e-6 && it.n.start < regionEnd) { it.judge = null; it.autoDone = false } }
         applyLevel(Double.NEGATIVE_INFINITY)
-        beat = regionStart - song.barBeats
+        beat = regionStart - countIn
         lastClick = floor(beat).toInt() - 1
     }
 
@@ -295,7 +296,7 @@ class GameEngine(private val cfg: GameConfig) {
         notes.forEach { it.judge = null; it.autoDone = false }
         score = 0; combo = 0; maxCombo = 0; perfect = 0; good = 0; off = 0; miss = 0; stray = 0
         offsets.clear(); missed.clear(); secHit.clear(); secTot.clear()
-        beat = regionStart - song.barBeats
+        beat = regionStart - countIn
         lastClick = floor(beat).toInt() - 1
         sectionCursor = -1
         lastJudge = null
