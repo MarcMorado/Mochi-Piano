@@ -85,6 +85,7 @@ fun SongSetupScreen(songId: String, fromLesson: Boolean, onBack: () -> Unit, onP
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(song.title, style = T.displayS, color = MC.Ink)
                 if (song.composer.isNotBlank()) Text(song.composer, style = T.body, color = MC.InkSoft)
+                if (song.credit.isNotBlank()) Text(song.credit, style = T.small, color = MC.InkSoft)
                 Text("${song.timeSig} · ${song.bars} BARS · ♩ = ${song.bpm.roundToInt()}" + if (song.keyName.isNotBlank()) " · ${song.keyName.uppercase()}" else "", style = T.monoS, color = MC.InkSoft)
             }
         }

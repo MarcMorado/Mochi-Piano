@@ -72,6 +72,7 @@ object Store {
     private var dir: File? = null
 
     fun load(ctx: Context) {
+        BuiltInSongs.load(ctx)
         val d = ctx.filesDir
         dir = d
         val f = File(d, "state.json")

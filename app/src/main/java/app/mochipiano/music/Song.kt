@@ -27,6 +27,8 @@ data class Song(
     val lessonId: String? = null,
     val coverSeed: Int = 0,
     val category: String = "",
+    /** Where the score came from, for pieces bundled from free libraries. */
+    val credit: String = "",
 ) {
     val length: Double get() = notes.maxOfOrNull { it.start + it.dur } ?: 0.0
     val hands: Set<Hand> get() = notes.map { it.hand }.toSet()
@@ -54,6 +56,7 @@ data class Song(
         put("id", id); put("title", title); put("composer", composer); put("bpm", bpm); put("barBeats", barBeats)
         put("timeSig", timeSig); put("keyName", keyName); put("coverSeed", coverSeed)
         if (category.isNotBlank()) put("category", category)
+        if (credit.isNotBlank()) put("credit", credit)
         put("notes", JSONArray().apply {
             notes.forEach { n -> put(JSONArray().apply { put(n.start); put(n.dur); put(n.pitch); put(if (n.hand == Hand.R) 0 else 1); put(n.finger) }) }
         })
@@ -61,7 +64,7 @@ data class Song(
     }
 
     companion object {
-        fun fromJson(o: JSONObject): Song {
+        fun fromJson(o: JSONObject, imported: Boolean = true): Song {
             val na = o.getJSONArray("notes")
             val notes = (0 until na.length()).map { i ->
                 val a = na.getJSONArray(i)
@@ -72,8 +75,8 @@ data class Song(
             return Song(
                 id = o.getString("id"), title = o.getString("title"), composer = o.optString("composer", ""),
                 bpm = o.optDouble("bpm", 90.0), barBeats = o.optDouble("barBeats", 4.0), timeSig = o.optString("timeSig", "4/4"),
-                keyName = o.optString("keyName", ""), notes = notes, sections = sections, imported = true,
-                coverSeed = o.optInt("coverSeed", 0), category = o.optString("category", ""),
+                keyName = o.optString("keyName", ""), notes = notes, sections = sections, imported = imported,
+                coverSeed = o.optInt("coverSeed", 0), category = o.optString("category", ""), credit = o.optString("credit", ""),
             )
         }
 
