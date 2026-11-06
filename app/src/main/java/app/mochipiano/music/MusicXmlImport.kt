@@ -117,9 +117,10 @@ object MusicXmlImport {
                         }
                     }
                 }
-                // Pickup bars are shorter than the time signature; use what was actually written.
+                // Pickup bars are shorter than the time signature; use what was actually written. A bar that reads
+                // too long (common in scores converted from PDF) still takes one bar, so later bars stay in time.
                 val implicit = m.getAttribute("implicit") == "yes"
-                measureStart += if (implicit || (maxPos < bar - 1e-6 && maxPos > 0 && measureStart == 0.0)) maxPos.coerceAtLeast(0.25) else maxOf(maxPos, bar)
+                measureStart += if (implicit || (maxPos < bar - 1e-6 && maxPos > 0 && measureStart == 0.0)) maxPos.coerceAtLeast(0.25) else bar
             }
         }
 
