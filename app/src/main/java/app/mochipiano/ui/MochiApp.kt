@@ -14,13 +14,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import app.mochipiano.course.Course
 import app.mochipiano.course.Practice
 import app.mochipiano.data.Store
 import app.mochipiano.game.GameConfig
-import app.mochipiano.midi.Link
-import app.mochipiano.midi.MidiHub
 import app.mochipiano.ui.components.BottomNav
 import app.mochipiano.ui.screens.CalibrateScreen
 import app.mochipiano.ui.screens.ConnectScreen
@@ -39,17 +36,11 @@ import app.mochipiano.ui.theme.MC
 @Composable
 fun MochiApp(openUri: Uri?) {
     val nav = remember { Nav() }
-    val ctx = LocalContext.current
     var importUri by remember { mutableStateOf(openUri) }
 
     LaunchedEffect(openUri) { if (openUri != null) { importUri = openUri; if (nav.top != Scr.Import) nav.push(Scr.Import) } }
-    // Reconnect to the last Bluetooth piano when the app opens.
-    LaunchedEffect(Unit) {
-        val d = Store.data
-        if (MidiHub.state.value.link == Link.Off && d.lastBtAddress != null && MidiHub.hasBtPermission(ctx)) {
-            MidiHub.connectBluetooth(ctx, d.lastBtAddress, d.lastBtName ?: "Piano")
-        }
-    }
+    // No automatic Bluetooth reconnect on launch: opening BLE MIDI to a saved address before a scan has seen
+    // the piano restarted some Samsung phones. Connecting always goes through a scan on the Connect screen.
 
     BackHandler(enabled = nav.stack.size > 1) { nav.pop() }
 

@@ -93,13 +93,14 @@ fun ConnectScreen(onDone: () -> Unit, onCalibrate: () -> Unit) {
                         style = T.body, color = MC.InkSoft,
                     )
                 }
-                found.forEachIndexed { i, f ->
+                val last = Store.data.lastBtAddress
+                found.sortedByDescending { it.address == last }.forEachIndexed { i, f ->
                     if (i > 0) Hairline()
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         Box(Modifier.size(44.dp).clip(RoundedCornerShape(14.dp)).background(MC.Ink), contentAlignment = Alignment.Center) { Icon(Ic.Piano, null, tint = MC.Surface, modifier = Modifier.size(24.dp)) }
                         Column(Modifier.weight(1f)) {
                             Text(f.name, style = T.bodyStrong, color = MC.Ink)
-                            Text("Bluetooth MIDI", style = T.small, color = MC.InkSoft)
+                            Text(if (f.address == last) "Your piano · Bluetooth MIDI" else "Bluetooth MIDI", style = T.small, color = if (f.address == last) MC.MintText else MC.InkSoft)
                         }
                         PrimaryButton(if (state.link == Link.Connecting) "…" else "Connect", {
                             MidiHub.onConnected = { addr -> if (addr != null) Store.update { it.copy(lastBtAddress = addr, lastBtName = f.name) } }
